@@ -5,7 +5,9 @@ const fs      = require('fs');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-const DATA_FILE = path.join(__dirname, 'data.json');
+const DATA_FILE = process.env.VERCEL
+  ? '/tmp/data.json'
+  : path.join(__dirname, 'data.json');
 
 function defaultData() {
   return {
@@ -207,6 +209,10 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Algo Training Hub running on port ${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Algo Training Hub running on port ${PORT}`);
+  });
+}
+
+module.exports = app;
