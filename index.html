@@ -5247,48 +5247,28 @@
   ============================================= -->
   <script>
     // =============================================
-    // LOCALSTORAGE KALITLARI
+    // SERVER-SIDE DATA (localStorage o'rniga)
     // =============================================
-    const LS = {
-      newcomerlar:   'algo_newcomerlar',
-      pending:       'algo_pending',
-      feedback:      'algo_feedback',
-      departamentlar:'algo_departamentlar',
-      adminCreds:    'algo_admin_creds',
-    };
+    function lsSaqlash() { /* server API ishlatiladi */ }
 
-    function lsSaqlash() {
+    async function dataYukla() {
       try {
-        localStorage.setItem(LS.newcomerlar,    JSON.stringify(ADMIN_NEWCOMERLAR));
-        localStorage.setItem(LS.pending,         JSON.stringify(PENDING_USERS));
-        localStorage.setItem(LS.feedback,        JSON.stringify(FEEDBACK_ROYXATI));
-        localStorage.setItem(LS.departamentlar,  JSON.stringify(DEPARTAMENTLAR));
-      } catch(e) { console.warn('localStorage saqlash xatosi:', e); }
+        const res = await fetch('/api/data');
+        const d   = await res.json();
+        ADMIN_NEWCOMERLAR.splice(0, ADMIN_NEWCOMERLAR.length, ...d.newcomerlar);
+        PENDING_USERS.splice(0, PENDING_USERS.length, ...d.pending);
+        FEEDBACK_ROYXATI.splice(0, FEEDBACK_ROYXATI.length, ...d.feedback);
+        DEPARTAMENTLAR.splice(0, DEPARTAMENTLAR.length, ...d.departamentlar);
+        _adminCreds = { email: d.adminEmail, ism: d.adminIsm };
+      } catch(e) { console.warn('Ma\'lumot yuklash xatosi:', e); }
     }
 
-    function lsYukla() {
-      try {
-        const n = localStorage.getItem(LS.newcomerlar);
-        if (n) { const d = JSON.parse(n); ADMIN_NEWCOMERLAR.splice(0, ADMIN_NEWCOMERLAR.length, ...d); }
-        const p = localStorage.getItem(LS.pending);
-        if (p) { const d = JSON.parse(p); PENDING_USERS.splice(0, PENDING_USERS.length, ...d); }
-        const f = localStorage.getItem(LS.feedback);
-        if (f) { const d = JSON.parse(f); FEEDBACK_ROYXATI.splice(0, FEEDBACK_ROYXATI.length, ...d); }
-        const dp = localStorage.getItem(LS.departamentlar);
-        if (dp) { const d = JSON.parse(dp); DEPARTAMENTLAR.splice(0, DEPARTAMENTLAR.length, ...d); }
-      } catch(e) { console.warn('localStorage yuklash xatosi:', e); }
-    }
+    let _adminCreds = { email: 'admin@algogroup.us', ism: 'Admin' };
 
-    function adminKirishMalumot() {
-      try {
-        const s = localStorage.getItem(LS.adminCreds);
-        if (s) return JSON.parse(s);
-      } catch(e) {}
-      return { email: 'admin@algogroup.us', parol: 'Algo@Admin2024', ism: 'Admin' };
-    }
+    function adminKirishMalumot() { return _adminCreds; }
 
     function adminKirishSaqlash(email, parol, ism) {
-      localStorage.setItem(LS.adminCreds, JSON.stringify({ email, parol, ism }));
+      _adminCreds = { email, ism };
     }
 
     // Joriy tanlangan rol
@@ -5308,12 +5288,13 @@
     }
 
     // =============================================
-    // KIRISH TEKSHIRUVI (haqiqiy localStorage auth)
+    // KIRISH TEKSHIRUVI (server-side auth)
     // =============================================
-    function kirishTekshir() {
+    async function kirishTekshir() {
       const email  = document.getElementById('email-input').value.trim().toLowerCase();
       const parol  = document.getElementById('parol-input').value;
       const xatoEl = document.getElementById('xato-xabar');
+      const btn    = document.getElementById('kirish-btn');
       xatoEl.classList.remove('ko-rin');
 
       if (!email || !parol) {
@@ -5322,36 +5303,36 @@
         return;
       }
 
-      if (joriyRol === 'admin') {
-        const creds = adminKirishMalumot();
-        if (email === creds.email.toLowerCase() && parol === creds.parol) {
-          joriyFoydalanuvchi = { email: creds.email, rol: 'admin', ism: creds.ism || 'Admin', birinchi: false };
-          sahifaKo('admin-sahifa');
-        } else {
-          xatoEl.textContent = 'Noto\'g\'ri admin email yoki parol.';
+      btn.disabled = true;
+      btn.textContent = 'Tekshirilmoqda...';
+      try {
+        const res  = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, parol, rol: joriyRol }),
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          xatoEl.textContent = data.xato || "Noto'g'ri email yoki parol.";
           xatoEl.classList.add('ko-rin');
           _kirishXatoAnim();
+          return;
         }
-        return;
-      }
-
-      // Newcomer login
-      const foydalanuvchi = ADMIN_NEWCOMERLAR.find(
-        f => f.email.toLowerCase() === email && f.parol === parol
-      );
-      if (!foydalanuvchi) {
-        xatoEl.textContent = 'Noto\'g\'ri email yoki parol.';
+        joriyFoydalanuvchi = data.user;
+        if (data.user.rol === 'admin') {
+          _adminCreds = { email: data.user.email, ism: data.user.ism };
+          sahifaKo('admin-sahifa');
+        } else if (data.birinchi) {
+          sahifaKo('welcome-sahifa');
+        } else {
+          sahifaKo('dashboard-sahifa');
+        }
+      } catch(e) {
+        xatoEl.textContent = 'Serverga ulanishda xatolik. Qayta urinib ko\'ring.';
         xatoEl.classList.add('ko-rin');
-        _kirishXatoAnim();
-        return;
-      }
-      joriyFoydalanuvchi = { ...foydalanuvchi, rol: 'newcomer' };
-      if (foydalanuvchi.birinchi) {
-        foydalanuvchi.birinchi = false;
-        lsSaqlash();
-        sahifaKo('welcome-sahifa');
-      } else {
-        sahifaKo('dashboard-sahifa');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Kirish →';
       }
     }
 
@@ -6354,11 +6335,11 @@
       adminToast(`👤 ${n.ism} | 📧 ${n.email} | 📊 ${n.progress}% | 🏢 ${n.bolim}`, 'info');
     }
 
-    function newcomerOchir(id) {
+    async function newcomerOchir(id) {
       if (!confirm('Newcomerni o\'chirmoqchimisiz?')) return;
+      await fetch('/api/newcomer/' + id, { method: 'DELETE' });
       const i = ADMIN_NEWCOMERLAR.findIndex(x => x.id === id);
       if (i !== -1) ADMIN_NEWCOMERLAR.splice(i, 1);
-      lsSaqlash();
       newcomerlarRender(ADMIN_NEWCOMERLAR);
       adminDashboardYangilash();
     }
@@ -6374,28 +6355,26 @@
       modalOch('newcomer-modal');
     }
 
-    function newcomerQosh() {
+    async function newcomerQosh() {
       const ism   = document.getElementById('m-ism').value.trim();
       const email = document.getElementById('m-email').value.trim();
       const parol = document.getElementById('m-parol').value;
       const bolim = document.getElementById('m-bolim').value.trim();
-      if (!ism || !email || !parol) {
-        adminToast('Barcha maydonlarni to\'ldiring!', 'xato');
-        return;
-      }
-      const emailBand = ADMIN_NEWCOMERLAR.some(u => u.email.toLowerCase() === email.toLowerCase());
-      if (emailBand) { adminToast('Bu email allaqachon ro\'yxatda bor!', 'xato'); return; }
-      const yangi = {
-        id: Date.now(), ism, email, parol,
-        bolim: bolim || 'ELD Division',
-        holat: 'faol', progress: 0, modulTugallandi: 0, ball: null, birinchi: true,
-      };
-      ADMIN_NEWCOMERLAR.push(yangi);
-      lsSaqlash();
-      modalYop('newcomer-modal');
-      newcomerlarRender(ADMIN_NEWCOMERLAR);
-      adminDashboardYangilash();
-      adminToast('✅ ' + ism + ' qo\'shildi!', 'muvaffaq');
+      if (!ism || !email || !parol) { adminToast('Barcha maydonlarni to\'ldiring!', 'xato'); return; }
+      try {
+        const res  = await fetch('/api/newcomer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ism, email, parol, bolim }),
+        });
+        const data = await res.json();
+        if (!data.ok) { adminToast(data.xato || 'Xatolik!', 'xato'); return; }
+        ADMIN_NEWCOMERLAR.push({ id: data.id, ism, email, bolim: bolim || 'ELD Division', holat: 'faol', progress: 0, modulTugallandi: 0, ball: null });
+        modalYop('newcomer-modal');
+        newcomerlarRender(ADMIN_NEWCOMERLAR);
+        adminDashboardYangilash();
+        adminToast('✅ ' + ism + ' qo\'shildi!', 'muvaffaq');
+      } catch(e) { adminToast('Server xatosi!', 'xato'); }
     }
 
     // =============================================
@@ -6858,19 +6837,23 @@
       if (emailEl) emailEl.value = creds.email || '';
     }
 
-    function sozlamalarSaqlash() {
+    async function sozlamalarSaqlash() {
       const ismEl   = document.getElementById('soz-admin-ism');
       const emailEl = document.getElementById('soz-admin-email');
       const parolEl = document.getElementById('soz-admin-parol');
       const creds = adminKirishMalumot();
       const yangiIsm   = ismEl   ? ismEl.value.trim()   : creds.ism;
       const yangiEmail = emailEl ? emailEl.value.trim().toLowerCase() : creds.email;
-      const yangiParol = parolEl && parolEl.value ? parolEl.value : creds.parol;
+      const yangiParol = parolEl && parolEl.value ? parolEl.value : creds.parol || 'Algo@Admin2024';
       if (!yangiEmail.includes('@')) { adminToast('To\'g\'ri email kiriting!', 'xato'); return; }
       if (yangiParol.length < 6) { adminToast('Parol kamida 6 ta belgi bo\'lsin!', 'xato'); return; }
+      await fetch('/api/admin/creds', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: yangiEmail, parol: yangiParol, ism: yangiIsm }),
+      });
       adminKirishSaqlash(yangiEmail, yangiParol, yangiIsm);
       if (parolEl) parolEl.value = '';
-      // Joriy foydalanuvchi ismini ham yangilash
       if (joriyFoydalanuvchi) { joriyFoydalanuvchi.ism = yangiIsm; joriyFoydalanuvchi.email = yangiEmail; }
       const adminIsmEl = document.getElementById('admin-user-ism');
       if (adminIsmEl) adminIsmEl.textContent = yangiIsm.split(' ')[0];
@@ -6902,33 +6885,37 @@
       });
     }
 
-    function deptQosh() {
+    async function deptQosh() {
       const nom  = document.getElementById('dept-yangi-nom').value.trim();
       const rang = document.getElementById('dept-yangi-rang').value;
       if (!nom) { adminToast('Departament nomini kiriting!', 'xato'); return; }
-      if (DEPARTAMENTLAR.find(d => d.nom.toLowerCase() === nom.toLowerCase())) {
-        adminToast('Bu nom allaqachon mavjud!', 'xato'); return;
-      }
-      DEPARTAMENTLAR.push({ id: deptIdCounter++, nom, rang });
-      lsSaqlash();
+      if (DEPARTAMENTLAR.find(d => d.nom.toLowerCase() === nom.toLowerCase())) { adminToast('Bu nom allaqachon mavjud!', 'xato'); return; }
+      const res  = await fetch('/api/dept', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nom, rang }) });
+      const data = await res.json();
+      DEPARTAMENTLAR.push({ id: data.id, nom, rang });
+      deptIdCounter = data.id + 1;
       document.getElementById('dept-yangi-nom').value = '';
       deptListRender();
       deptSelectlarYangilash();
       adminToast('✅ "' + nom + '" departamenti qo\'shildi!', 'muvaffaq');
     }
 
-    function deptTahrir(id) {
+    async function deptTahrir(id) {
       const d   = DEPARTAMENTLAR.find(x => x.id === id);
       const nom = prompt('Departament nomini o\'zgartiring:', d.nom);
-      if (nom && nom.trim()) { d.nom = nom.trim(); lsSaqlash(); deptListRender(); deptSelectlarYangilash(); }
+      if (!nom || !nom.trim()) return;
+      await fetch('/api/dept/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nom: nom.trim() }) });
+      d.nom = nom.trim();
+      deptListRender();
+      deptSelectlarYangilash();
     }
 
-    function deptOchir(id) {
+    async function deptOchir(id) {
       if (DEPARTAMENTLAR.length <= 1) { adminToast('Kamida 1 ta departament bo\'lishi kerak!', 'xato'); return; }
       const d = DEPARTAMENTLAR.find(x => x.id === id);
       if (!confirm('"' + d.nom + '" departamentini o\'chirasizmi?')) return;
+      await fetch('/api/dept/' + id, { method: 'DELETE' });
       DEPARTAMENTLAR.splice(DEPARTAMENTLAR.findIndex(x => x.id === id), 1);
-      lsSaqlash();
       deptListRender();
       deptSelectlarYangilash();
       adminToast('🗑 "' + d.nom + '" o\'chirildi.', 'xato');
@@ -6966,59 +6953,39 @@
     // =============================================
     // REGISTER / RO'YXATDAN O'TISH
     // =============================================
-    function royxatdanOt() {
-      const ism          = document.getElementById('reg-ism').value.trim();
-      const familiya     = document.getElementById('reg-familiya').value.trim();
-      const email        = document.getElementById('reg-email').value.trim();
-      const parol        = document.getElementById('reg-parol').value;
-      const deptId       = parseInt(document.getElementById('reg-departament').value);
-      const xatoEl       = document.getElementById('register-xato');
-      const muvaffaqEl   = document.getElementById('register-muvaffaq');
+    async function royxatdanOt() {
+      const ism        = document.getElementById('reg-ism').value.trim();
+      const familiya   = document.getElementById('reg-familiya').value.trim();
+      const email      = document.getElementById('reg-email').value.trim();
+      const parol      = document.getElementById('reg-parol').value;
+      const deptId     = parseInt(document.getElementById('reg-departament').value);
+      const xatoEl     = document.getElementById('register-xato');
+      const muvaffaqEl = document.getElementById('register-muvaffaq');
 
       xatoEl.classList.remove('korinadi');
       muvaffaqEl.classList.remove('korinadi');
 
-      if (!ism || !familiya) {
-        xatoEl.textContent = 'Ism va familiyani to\'liq kiriting.';
-        xatoEl.classList.add('korinadi'); return;
+      if (!ism || !familiya) { xatoEl.textContent = 'Ism va familiyani to\'liq kiriting.'; xatoEl.classList.add('korinadi'); return; }
+      if (!email.includes('@')) { xatoEl.textContent = 'To\'g\'ri email manzil kiriting.'; xatoEl.classList.add('korinadi'); return; }
+      if (!deptId) { xatoEl.textContent = 'Iltimos, departamentingizni tanlang.'; xatoEl.classList.add('korinadi'); return; }
+      if (parol.length < 6) { xatoEl.textContent = 'Parol kamida 6 belgidan iborat bo\'lishi kerak.'; xatoEl.classList.add('korinadi'); return; }
+
+      try {
+        const res  = await fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ism, familiya, email, parol, deptId }),
+        });
+        const data = await res.json();
+        if (!data.ok) { xatoEl.textContent = data.xato || 'Xatolik yuz berdi.'; xatoEl.classList.add('korinadi'); return; }
+        ['reg-ism','reg-familiya','reg-email','reg-parol'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+        document.getElementById('reg-departament').value = '';
+        muvaffaqEl.innerHTML = '✅ So\'rovingiz yuborildi!<br><strong>' + (data.deptNom || '') + '</strong> bo\'limiga — Admin tasdiqlashini kuting.';
+        muvaffaqEl.classList.add('korinadi');
+      } catch(e) {
+        xatoEl.textContent = 'Serverga ulanishda xatolik. Qayta urinib ko\'ring.';
+        xatoEl.classList.add('korinadi');
       }
-      if (!email.includes('@')) {
-        xatoEl.textContent = 'To\'g\'ri email manzil kiriting.';
-        xatoEl.classList.add('korinadi'); return;
-      }
-      if (!deptId) {
-        xatoEl.textContent = 'Iltimos, departamentingizni tanlang.';
-        xatoEl.classList.add('korinadi'); return;
-      }
-      if (parol.length < 6) {
-        xatoEl.textContent = 'Parol kamida 6 belgidan iborat bo\'lishi kerak.';
-        xatoEl.classList.add('korinadi'); return;
-      }
-      const emailBor = ADMIN_NEWCOMERLAR.some(u => u.email === email)
-                    || PENDING_USERS.some(u => u.email === email);
-      if (emailBor) {
-        xatoEl.textContent = 'Bu email allaqachon ro\'yxatdan o\'tgan.';
-        xatoEl.classList.add('korinadi'); return;
-      }
-      const dept = DEPARTAMENTLAR.find(d => d.id === deptId);
-      const yangiPending = {
-        id:           Date.now(),
-        ism:          ism,
-        familiya:     familiya,
-        fullIsm:      ism + ' ' + familiya,
-        email:        email,
-        parol:        parol,
-        departamentId: deptId,
-        departamentNom: dept ? dept.nom : 'Noma\'lum',
-        sana:         new Date().toLocaleDateString('uz-UZ'),
-      };
-      PENDING_USERS.push(yangiPending);
-      lsSaqlash();
-      adminBadgeYangilash();
-      ['reg-ism','reg-familiya','reg-email','reg-parol'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
-      document.getElementById('reg-departament').value = '';
-      muvaffaqEl.innerHTML = '✅ So\'rovingiz yuborildi!<br><strong>' + (dept ? dept.nom : '') + '</strong> bo\'limiga — Admin tasdiqlashini kuting.';
-      muvaffaqEl.classList.add('korinadi');
     }
 
     // =============================================
@@ -7075,36 +7042,26 @@
       });
     }
 
-    function pendingTasdiq(id) {
+    async function pendingTasdiq(id) {
       const idx = PENDING_USERS.findIndex(u => u.id === id);
       if (idx === -1) return;
       const u = PENDING_USERS[idx];
-      ADMIN_NEWCOMERLAR.push({
-        id: Date.now(),
-        ism: u.fullIsm,
-        email: u.email,
-        parol: u.parol,
-        bolim: u.departamentNom || 'ELD Division',
-        departamentId: u.departamentId || 1,
-        holat: 'faol',
-        progress: 0,
-        modulTugallandi: 0,
-        ball: 0,
-        birinchi: true,
-      });
+      await fetch('/api/pending/approve/' + id, { method: 'POST' });
+      const yangi = { id: Date.now(), ism: u.fullIsm, email: u.email, bolim: u.departamentNom || 'ELD Division', departamentId: u.departamentId || 1, holat: 'faol', progress: 0, modulTugallandi: 0, ball: 0 };
+      ADMIN_NEWCOMERLAR.push(yangi);
       PENDING_USERS.splice(idx, 1);
-      lsSaqlash();
       adminBadgeYangilash();
       pendingRender();
+      adminDashboardYangilash();
       adminToast('✅ ' + u.fullIsm + ' — approved!', 'muvaffaq');
     }
 
-    function pendingRad(id) {
+    async function pendingRad(id) {
       const idx = PENDING_USERS.findIndex(u => u.id === id);
       if (idx === -1) return;
       const u = PENDING_USERS[idx];
+      await fetch('/api/pending/' + id, { method: 'DELETE' });
       PENDING_USERS.splice(idx, 1);
-      lsSaqlash();
       adminBadgeYangilash();
       pendingRender();
       adminToast('❌ ' + u.fullIsm + ' — rad etildi.', 'xato');
@@ -7126,20 +7083,15 @@
       document.querySelectorAll('.feedback-tur-btn').forEach(b => b.classList.remove('faol'));
       btn.classList.add('faol');
     }
-    function feedbackYuborish() {
+    async function feedbackYuborish() {
       const matn = document.getElementById('feedback-matn').value.trim();
       if (!matn) return;
       const ism = joriyFoydalanuvchi ? joriyFoydalanuvchi.ism : 'Anonim';
-      FEEDBACK_ROYXATI.push({
-        id:    Date.now(),
-        ism:   ism,
-        tur:   feedbackTurJoriy,
-        matn:  matn,
-        sana:  new Date().toLocaleDateString('uz-UZ'),
-        oqildi: false,
+      await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ism, tur: feedbackTurJoriy, matn }),
       });
-      lsSaqlash();
-      adminBadgeYangilash();
       document.getElementById('feedback-matn').value = '';
       document.getElementById('feedback-modal-fon').classList.remove('ochiq');
       aiPanelXabarQo('Feedbackingiz adminga yuborildi ✓ Rahmat!', 'bot');
@@ -7581,8 +7533,7 @@
     // =============================================
     (async function appInit() {
       try { await idbInit(); } catch(e) { console.warn('IndexedDB init failed:', e); }
-      lsYukla();
-      // deptIdCounter ni soz qilish (mavjud max id dan boshlansin)
+      await dataYukla();
       if (DEPARTAMENTLAR.length > 0) {
         deptIdCounter = Math.max(...DEPARTAMENTLAR.map(d => d.id)) + 1;
       }
