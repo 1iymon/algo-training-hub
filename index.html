@@ -4329,11 +4329,11 @@
 
       <!-- Sarlavha -->
       <div class="welcome-sarlavha-blok">
-        <div class="welcome-badge">ELD Division · Onboarding</div>
+        <div class="welcome-badge" id="welcome-badge">ELD Division · Onboarding</div>
         <h1 class="welcome-sarlavha">
           <span>Algo Group</span> ga<br />xush kelibsiz!
         </h1>
-        <p class="welcome-tavsif">
+        <p class="welcome-tavsif" id="welcome-tavsif">
           Siz professional ELD mutaxassisi bo'lish yo'lida birinchi qadamni qo'ydingiz.
           Ushbu platforma orqali barcha kerakli bilimlarni mustaqil o'zlashtiring.
         </p>
@@ -4386,7 +4386,7 @@
           O'qishni boshlash
           <span class="btn-strelka">→</span>
         </button>
-        <div class="boshlash-izoh">8 modul · Test · Diploma</div>
+        <div class="boshlash-izoh" id="boshlash-izoh">8 modul · Test · Diploma</div>
       </div>
 
     </div>
@@ -4807,7 +4807,10 @@
           <span class="nav-ikona">👥</span> Newcomerlar
         </div>
         <div class="admin-nav-item" onclick="adminNavOch('modullar')" id="anav-modullar">
-          <span class="nav-ikona">📚</span> Modullar
+          <span class="nav-ikona">📚</span> ELD Modullar
+        </div>
+        <div class="admin-nav-item" onclick="adminNavOch('sales')" id="anav-sales">
+          <span class="nav-ikona">💼</span> Sales Panel
         </div>
         <div class="admin-nav-item" onclick="adminNavOch('statistika')" id="anav-statistika">
           <span class="nav-ikona">📈</span> Statistika
@@ -4916,6 +4919,36 @@
           </div>
 
           <div class="modullar-boshqaruv-grid" id="admin-modullar-grid"></div>
+        </div>
+
+        <!-- SALES PANEL SECTION -->
+        <div class="admin-section" id="asec-sales">
+          <div class="admin-page-sarlavha">
+            <h2>Sales Panel</h2>
+            <span style="font-size:12px;color:var(--kulrang)">Sales newcomerlar uchun kontent boshqaruvi</span>
+          </div>
+
+          <!-- CEO Kirish Videosi -->
+          <div style="background:rgba(255,179,71,0.07);border:1px solid rgba(255,179,71,0.2);border-radius:12px;padding:20px;margin-bottom:24px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+              <span style="font-size:20px">🎬</span>
+              <div>
+                <div style="font-weight:700;color:var(--oq)">CEO Kirish Videosi — Sales</div>
+                <div style="font-size:12px;color:var(--kulrang)">Sales newcomerlar birinchi kirishda ko'radigan CEO xabarnomasi</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center">
+              <input class="modal-input" id="sales-ceo-url" placeholder="YouTube URL yoki to'g'ridan-to'g'ri video link..." style="flex:1;margin:0" />
+              <button class="admin-qoshish-btn" onclick="salesCeoVideoSaqlash()" style="white-space:nowrap">Saqlash</button>
+            </div>
+            <div id="sales-ceo-preview" style="margin-top:12px"></div>
+          </div>
+
+          <!-- Sales modullar grid -->
+          <div class="admin-page-sarlavha" style="margin-bottom:16px">
+            <h3 style="font-size:16px">Sales Modullar</h3>
+          </div>
+          <div class="modullar-boshqaruv-grid" id="admin-sales-grid"></div>
         </div>
 
         <!-- STATISTIKA SECTION -->
@@ -5347,10 +5380,50 @@
     // =============================================
     // SAHIFALAR O'RTASIDA NAVIGATSIYA
     // =============================================
+    // =============================================
+    // WELCOME SCREEN — DEPARTMENT KONTENT
+    // =============================================
+    function welcomeYangilash() {
+      if (!joriyFoydalanuvchi) return;
+      const deptId = joriyFoydalanuvchi.departamentId || 1;
+      const dept   = DEPARTAMENTLAR.find(d => d.id === deptId) || { nom: 'Algo Group', rang: '#00A86B' };
+      const tavsiflar = {
+        1: "Siz professional ELD mutaxassisi bo'lish yo'lida birinchi qadamni qo'ydingiz. Ushbu platforma orqali barcha kerakli bilimlarni mustaqil o'zlashtiring.",
+        2: "Siz professional Safety mutaxassisi bo'lish yo'lida birinchi qadamni qo'ydingiz. Ushbu platforma orqali barcha kerakli bilimlarni mustaqil o'zlashtiring.",
+        3: "Siz professional Sales mutaxassisi bo'lish yo'lida birinchi qadamni qo'ydingiz. Ushbu platforma orqali barcha kerakli bilimlarni mustaqil o'zlashtiring.",
+        4: "Siz professional IT mutaxassisi bo'lish yo'lida birinchi qadamni qo'ydingiz. Ushbu platforma orqali barcha kerakli bilimlarni mustaqil o'zlashtiring.",
+      };
+      const deptModullar = MODULLAR.filter(m => !m.departamentlar || m.departamentlar.includes(deptId));
+
+      const badgeEl  = document.getElementById('welcome-badge');
+      const tavsifEl = document.getElementById('welcome-tavsif');
+      const izohEl   = document.getElementById('boshlash-izoh');
+      if (badgeEl)  badgeEl.textContent  = dept.nom + ' Division · Onboarding';
+      if (tavsifEl) tavsifEl.textContent = tavsiflar[deptId] || tavsiflar[1];
+      if (izohEl)   izohEl.textContent   = deptModullar.length + ' modul · Test · Diploma';
+
+      // CEO video
+      const videoUrl = DEPT_CEO_VIDEOLARI[deptId] || '';
+      const videoEl  = document.getElementById('ceo-video');
+      const placeholderEl = document.getElementById('video-placeholder');
+      if (videoEl) {
+        if (videoUrl) {
+          videoEl.src = videoUrl;
+          videoEl.style.display = 'block';
+          if (placeholderEl) placeholderEl.style.display = 'none';
+        } else {
+          videoEl.src = '';
+          videoEl.style.display = 'none';
+          if (placeholderEl) placeholderEl.style.display = 'flex';
+        }
+      }
+    }
+
     function sahifaKo(sahifaId) {
       document.querySelectorAll('.sahifa').forEach(s => s.classList.remove('faol'));
       document.getElementById(sahifaId).classList.add('faol');
       if (sahifaId === 'welcome-sahifa') {
+        welcomeYangilash();
         setTimeout(welcomeStatistikaBoshlash, 400);
       }
       if (sahifaId === 'dashboard-sahifa') {
@@ -5429,6 +5502,13 @@
       { id: 6, nom: 'Inspection',          tavsif: '6 level, DOT, driver jarayoni',                   vaqt: 30, holat: 'qulflangan', ball: null, progress: 0, departamentlar: [1,2]     },
       { id: 7, nom: 'Hujjatlar',           tavsif: 'BOL, CDL, DVIR, RODS, Cab Card',                  vaqt: 35, holat: 'qulflangan', ball: null, progress: 0, departamentlar: [1,2,3]   },
       { id: 8, nom: 'Platformalar',        tavsif: 'Leader/Factor ELD, monitoring, subscription',     vaqt: 40, holat: 'qulflangan', ball: null, progress: 0, departamentlar: [1]       },
+      // ── Sales modullar ──
+      { id: 101, nom: 'Sales Asoslari',       tavsif: 'Freight brokerage, load types, market overview',       vaqt: 30, holat: 'ochiq',      ball: null, progress: 0, departamentlar: [3] },
+      { id: 102, nom: 'Load Qidirish',        tavsif: 'Load boards, DAT, Truckstop, shipper direct',          vaqt: 25, holat: 'qulflangan', ball: null, progress: 0, departamentlar: [3] },
+      { id: 103, nom: 'Rate & Negotiation',   tavsif: 'Market rates, fuel surcharge, rate confirmation',      vaqt: 35, holat: 'qulflangan', ball: null, progress: 0, departamentlar: [3] },
+      { id: 104, nom: 'Carrier Relations',    tavsif: 'Carrier onboarding, MC/DOT check, agreements',        vaqt: 30, holat: 'qulflangan', ball: null, progress: 0, departamentlar: [3] },
+      { id: 105, nom: 'CRM & Communication',  tavsif: 'CRM tools, email etiquette, call scripts',             vaqt: 40, holat: 'qulflangan', ball: null, progress: 0, departamentlar: [3] },
+      { id: 106, nom: 'Dispatch & Tracking',  tavsif: 'Load dispatching, tracking, POD, invoice',            vaqt: 35, holat: 'qulflangan', ball: null, progress: 0, departamentlar: [3] },
     ];
 
     // =============================================
@@ -5441,6 +5521,9 @@
       { id: 4, nom: 'IT',     rang: '#C084FC' },
     ];
     let deptIdCounter = 5;
+
+    // CEO kirish videolari departmentlar uchun (localStorage da saqlanadi)
+    let DEPT_CEO_VIDEOLARI = JSON.parse(localStorage.getItem('ALGO_DEPT_VIDEOS') || '{}');
 
     // Joriy ochiq modul (kelajakda modul sahifasi uchun)
     let joriyModulId = null;
@@ -5458,22 +5541,26 @@
       document.getElementById('dash-user-ism').textContent = ism.split(' ')[0];
       document.getElementById('dash-ism-sarlavha').textContent = ism.split(' ')[0];
 
+      // Faqat shu departament modullarini olish
+      const userDeptId = joriyFoydalanuvchi.departamentId || 1;
+      const deptModullar = MODULLAR.filter(m => !m.departamentlar || m.departamentlar.includes(userDeptId));
+
       // Statistika hisoblash
-      const tugallanganlar = MODULLAR.filter(m => m.holat === 'tugallandi');
-      const balllar = MODULLAR.filter(m => m.ball !== null).map(m => m.ball);
+      const tugallanganlar = deptModullar.filter(m => m.holat === 'tugallandi');
+      const balllar = deptModullar.filter(m => m.ball !== null).map(m => m.ball);
       const ortachaBall = balllar.length ? Math.round(balllar.reduce((a,b) => a+b, 0) / balllar.length) : null;
-      const jamiVaqt = MODULLAR.filter(m => m.holat !== 'qulflangan' && m.holat !== 'ochiq').reduce((s,m) => s + m.vaqt, 0);
+      const jamiVaqt = deptModullar.filter(m => m.holat !== 'qulflangan' && m.holat !== 'ochiq').reduce((s,m) => s + m.vaqt, 0);
 
       // Umumiy progress foizi
-      const progressFoizi = Math.round((tugallanganlar.length / MODULLAR.length) * 100);
+      const progressFoizi = deptModullar.length ? Math.round((tugallanganlar.length / deptModullar.length) * 100) : 0;
       document.getElementById('dash-progress-foiz').textContent = progressFoizi + '%';
       document.getElementById('dash-progress-bar').style.width = progressFoizi + '%';
 
       // Statistika kartlari
-      document.getElementById('stat-tugallandi').textContent = tugallanganlar.length + '/8';
+      document.getElementById('stat-tugallandi').textContent = tugallanganlar.length + '/' + deptModullar.length;
       document.getElementById('stat-ortacha').textContent = ortachaBall !== null ? ortachaBall + '%' : '—';
       document.getElementById('stat-vaqt').textContent = jamiVaqt > 0 ? jamiVaqt + ' min' : '0 min';
-      document.getElementById('modullar-hisobi').textContent = tugallanganlar.length + ' / 8 tugatildi';
+      document.getElementById('modullar-hisobi').textContent = tugallanganlar.length + ' / ' + deptModullar.length + ' tugatildi';
 
       // Sidebar va grid render
       sidebarRender();
@@ -6256,6 +6343,7 @@
       if (nom === 'dashboard')      adminDashboardYangilash();
       if (nom === 'newcomerlar')    newcomerlarRender(ADMIN_NEWCOMERLAR);
       if (nom === 'modullar')       adminModullarRender();
+      if (nom === 'sales')          adminSalesRender();
       if (nom === 'statistika')     adminStatistikaYangilash();
       if (nom === 'departamentlar') deptListRender();
       if (nom === 'pending')        pendingRender();
@@ -6382,7 +6470,8 @@
     // =============================================
     function adminModullarRender() {
       const grid = document.getElementById('admin-modullar-grid');
-      grid.innerHTML = MODULLAR.map(m => {
+      const eldModullar = MODULLAR.filter(m => !m.departamentlar || m.departamentlar.includes(1));
+      grid.innerHTML = eldModullar.map(m => {
         const videoHolat = m.videoUrl
           ? `<span class="video-status-badge bor">▶ Video bor</span>`
           : `<span class="video-status-badge yoq">✕ Video yo'q</span>`;
@@ -6409,6 +6498,70 @@
           </div>
         </div>`;
       }).join('');
+    }
+
+    // =============================================
+    // ADMIN SALES PANEL
+    // =============================================
+    function adminSalesRender() {
+      // CEO video URL input ni to'ldirish
+      const savedUrl = DEPT_CEO_VIDEOLARI[3] || '';
+      const urlInput = document.getElementById('sales-ceo-url');
+      if (urlInput) urlInput.value = savedUrl;
+      salesCeoPreviewYangilash();
+
+      // Sales modullarni render qilish (departamentId=3)
+      const salesModullar = MODULLAR.filter(m => m.departamentlar && m.departamentlar.includes(3));
+      const grid = document.getElementById('admin-sales-grid');
+      if (!grid) return;
+      grid.innerHTML = salesModullar.map(m => {
+        const videoHolat = m.videoUrl
+          ? `<span class="video-status-badge bor">▶ Video bor</span>`
+          : `<span class="video-status-badge yoq">✕ Video yo'q</span>`;
+        const qulfTxt  = m.holat === 'qulflangan' ? '🔒 Qulflangan' : '✓ Ochiq';
+        const qulfSinf = m.holat === 'qulflangan' ? 'jarayon' : 'faol';
+        return `
+        <div class="admin-modul-karta">
+          <div class="admin-modul-karta-top">
+            <div>
+              <div class="admin-modul-raqam" style="color:#FFB347">Sales · M${m.id - 100}</div>
+              <div class="admin-modul-nom">${m.nom}</div>
+            </div>
+            <span class="holat-badge ${qulfSinf}">${qulfTxt}</span>
+          </div>
+          <div style="font-size:12px;color:var(--kulrang);line-height:1.5;margin-bottom:10px">${m.tavsif}</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+            ${videoHolat}
+            <span style="font-size:11px;color:var(--kulrang)">${m.vaqt} daqiqa</span>
+          </div>
+          <div class="admin-modul-actions">
+            <button class="td-btn" style="background:rgba(255,179,71,0.14);border-color:rgba(255,179,71,0.25);color:#FFB347;" onclick="adminVideoModal(${m.id})">🎥 Video yuklash</button>
+            <button class="td-btn" onclick="adminTestTahrir(${m.id})">✅ Test tahrirlash</button>
+            <button class="td-btn" onclick="adminModulTahrir(${m.id})">✏️ Modul tahrirlash</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function salesCeoPreviewYangilash() {
+      const url     = (document.getElementById('sales-ceo-url') || {}).value || DEPT_CEO_VIDEOLARI[3] || '';
+      const preview = document.getElementById('sales-ceo-preview');
+      if (!preview) return;
+      if (!url) { preview.innerHTML = ''; return; }
+      const embedUrl = youtubeEmbed(url);
+      if (embedUrl) {
+        preview.innerHTML = `<iframe src="${embedUrl}" style="width:100%;height:220px;border-radius:8px;border:none" allowfullscreen></iframe>`;
+      } else {
+        preview.innerHTML = `<div style="font-size:12px;color:rgba(255,179,71,0.7);padding:8px 0">🔗 Video URL saqlangan</div>`;
+      }
+    }
+
+    function salesCeoVideoSaqlash() {
+      const url = (document.getElementById('sales-ceo-url') || {}).value?.trim() || '';
+      DEPT_CEO_VIDEOLARI[3] = url;
+      localStorage.setItem('ALGO_DEPT_VIDEOS', JSON.stringify(DEPT_CEO_VIDEOLARI));
+      salesCeoPreviewYangilash();
+      adminToast('✅ Sales CEO video saqlandi!', 'muvaffaq');
     }
 
     // =============================================
