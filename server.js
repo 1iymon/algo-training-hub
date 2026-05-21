@@ -5,7 +5,7 @@ const fs      = require('fs');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-const DATA_FILE = process.env.VERCEL
+const DATA_FILE = (process.env.VERCEL || process.env.RAILWAY_ENVIRONMENT)
   ? '/tmp/data.json'
   : path.join(__dirname, 'data.json');
 
@@ -28,14 +28,16 @@ function loadData() {
   try {
     return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
   } catch {
-    const d = defaultData();
-    saveData(d);
-    return d;
+    return defaultData();
   }
 }
 
 function saveData(data) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+  try {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+  } catch(e) {
+    console.error('saveData error:', e.message);
+  }
 }
 
 app.use(express.json());
