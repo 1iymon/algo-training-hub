@@ -6466,6 +6466,53 @@
     }
 
     // =============================================
+    // MODUL DEPT VISIBILITY — saqlash va yuklash
+    // =============================================
+    function modulDeptOverrideYukla() {
+      const saved = JSON.parse(localStorage.getItem('ALGO_MODUL_DEPTS') || '{}');
+      Object.entries(saved).forEach(([id, depts]) => {
+        const m = MODULLAR.find(x => x.id === parseInt(id));
+        if (m) m.departamentlar = depts;
+      });
+    }
+
+    function modulDeptOzgartir(modulId, deptId, belgilangan) {
+      const m = MODULLAR.find(x => x.id === modulId);
+      if (!m) return;
+      if (!m.departamentlar) m.departamentlar = [1];
+      if (belgilangan) {
+        if (!m.departamentlar.includes(deptId)) m.departamentlar.push(deptId);
+      } else {
+        m.departamentlar = m.departamentlar.filter(d => d !== deptId);
+      }
+      // Kamida bitta dept bo'lishi kerak
+      if (m.departamentlar.length === 0) { m.departamentlar = [1]; adminToast('Kamida 1 ta departament kerak', 'xato'); return; }
+      const saved = JSON.parse(localStorage.getItem('ALGO_MODUL_DEPTS') || '{}');
+      saved[modulId] = m.departamentlar;
+      localStorage.setItem('ALGO_MODUL_DEPTS', JSON.stringify(saved));
+    }
+
+    function deptCheckboxHtml(modulId) {
+      const m = MODULLAR.find(x => x.id === modulId);
+      const deptlar = m ? (m.departamentlar || [1]) : [1];
+      const ranglar = { 1: '#00A86B', 2: '#4A9EFF', 3: '#FFB347', 4: '#C084FC' };
+      return `
+        <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:10px;margin-top:4px">
+          <div style="font-size:11px;color:var(--kulrang);margin-bottom:7px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Ko'rinish</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            ${DEPARTAMENTLAR.map(d => `
+              <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:${deptlar.includes(d.id) ? d.rang || ranglar[d.id] : 'var(--kulrang)'}">
+                <input type="checkbox" ${deptlar.includes(d.id) ? 'checked' : ''}
+                  onchange="modulDeptOzgartir(${modulId},${d.id},this.checked)"
+                  style="accent-color:${d.rang || ranglar[d.id]};width:14px;height:14px;cursor:pointer" />
+                ${d.nom}
+              </label>
+            `).join('')}
+          </div>
+        </div>`;
+    }
+
+    // =============================================
     // ADMIN MODULLAR
     // =============================================
     function adminModullarRender() {
@@ -6491,7 +6538,8 @@
             ${videoHolat}
             <span style="font-size:11px;color:var(--kulrang)">${m.vaqt} daqiqa</span>
           </div>
-          <div class="admin-modul-actions">
+          ${deptCheckboxHtml(m.id)}
+          <div class="admin-modul-actions" style="margin-top:12px">
             <button class="td-btn" style="background:rgba(0,168,107,0.14);border-color:rgba(0,168,107,0.25);color:rgba(0,220,140,0.85);" onclick="adminVideoModal(${m.id})">🎥 Video yuklash</button>
             <button class="td-btn" onclick="adminTestTahrir(${m.id})">✅ Test tahrirlash</button>
             <button class="td-btn" onclick="adminModulTahrir(${m.id})">✏️ Modul tahrirlash</button>
@@ -6534,7 +6582,8 @@
             ${videoHolat}
             <span style="font-size:11px;color:var(--kulrang)">${m.vaqt} daqiqa</span>
           </div>
-          <div class="admin-modul-actions">
+          ${deptCheckboxHtml(m.id)}
+          <div class="admin-modul-actions" style="margin-top:12px">
             <button class="td-btn" style="background:rgba(255,179,71,0.14);border-color:rgba(255,179,71,0.25);color:#FFB347;" onclick="adminVideoModal(${m.id})">🎥 Video yuklash</button>
             <button class="td-btn" onclick="adminTestTahrir(${m.id})">✅ Test tahrirlash</button>
             <button class="td-btn" onclick="adminModulTahrir(${m.id})">✏️ Modul tahrirlash</button>
@@ -7687,6 +7736,7 @@
     (async function appInit() {
       try { await idbInit(); } catch(e) { console.warn('IndexedDB init failed:', e); }
       await dataYukla();
+      modulDeptOverrideYukla();
       if (DEPARTAMENTLAR.length > 0) {
         deptIdCounter = Math.max(...DEPARTAMENTLAR.map(d => d.id)) + 1;
       }
